@@ -12,39 +12,79 @@ int stepPin=stepXPin;
 int dirPin=dirXPin;
 
 const int stepsPerRev=200;
-int pulseWidthMicros = 100;  // microseconds
-int millisBtwnSteps = 1000;
+int pulseWidthMicros = 10;  // microseconds
+int millisBtwnSteps = 100;
 
 void setup() {
   Serial.begin(9600);
   pinMode(enPin, OUTPUT);
   digitalWrite(enPin, LOW);
-  pinMode(stepPin, OUTPUT);
-  pinMode(dirPin, OUTPUT);
+  pinMode(stepXPin, OUTPUT);
+  pinMode(dirXPin, OUTPUT);
+
+  pinMode(stepYPin, OUTPUT);
+  pinMode(dirYPin, OUTPUT);
  
   Serial.println(F("CNC Shield Initialized"));
 }
 
 void loop() {
-  Serial.println(F("Running clockwise"));
-  digitalWrite(dirPin, HIGH); // Enables the motor to move in a particular direction
-  // Makes 200 pulses for making one full cycle rotation
-  for (int i = 0; i < stepsPerRev; i++) {
-    digitalWrite(stepPin, HIGH);
-    delayMicroseconds(pulseWidthMicros);
-    digitalWrite(stepPin, LOW);
-    delayMicroseconds(millisBtwnSteps);
-  }
-  delay(1000); // One second delay
 
-  Serial.println(F("Running counter-clockwise"));
-  digitalWrite(dirPin, LOW); //Changes the rotations direction
-  // Makes 400 pulses for making two full cycle rotation
-  for (int i = 0; i < 2*stepsPerRev; i++) {
-    digitalWrite(stepPin, HIGH);
-    delayMicroseconds(pulseWidthMicros);
-    digitalWrite(stepPin, LOW);
-    delayMicroseconds(millisBtwnSteps);
+  static uint16_t steps_number;
+  static bool direction;
+
+  static char key;
+  if (Serial.available() > 1){
+    key = Serial.read();
+    Serial.println(key);
+    switch (key){
+      case 'f':
+        steps_number = Serial.parseInt();
+        direction = true;
+        digitalWrite(dirXPin, direction);
+        for (uint16_t i = 0; i < steps_number; i++){
+          digitalWrite(stepXPin, HIGH);
+          delayMicroseconds(pulseWidthMicros);
+          digitalWrite(stepXPin, LOW);
+          delayMicroseconds(millisBtwnSteps);
+        }
+        break;
+
+        case 'b':
+          steps_number = Serial.parseInt();
+          direction = false;
+          digitalWrite(dirXPin, direction);
+          for (uint16_t i = 0; i < steps_number; i++){
+            digitalWrite(stepXPin, HIGH);
+            delayMicroseconds(pulseWidthMicros);
+            digitalWrite(stepXPin, LOW);
+            delayMicroseconds(millisBtwnSteps);
+          }
+          break;
+
+          case 'q':
+            steps_number = Serial.parseInt();
+            direction = true;
+            digitalWrite(dirYPin, direction);
+            for (uint16_t i = 0; i < steps_number; i++){
+              digitalWrite(stepYPin, HIGH);
+              delayMicroseconds(pulseWidthMicros);
+              digitalWrite(stepYPin, LOW);
+              delayMicroseconds(millisBtwnSteps);
+            }
+            break;
+
+          case 'w':
+            steps_number = Serial.parseInt();
+            direction = false;
+            digitalWrite(dirYPin, direction);
+            for (uint16_t i = 0; i < steps_number; i++){
+              digitalWrite(stepYPin, HIGH);
+              delayMicroseconds(pulseWidthMicros);
+              digitalWrite(stepYPin, LOW);
+              delayMicroseconds(millisBtwnSteps);
+            }
+            break;
+    }
   }
-  delay(1000);
 }
