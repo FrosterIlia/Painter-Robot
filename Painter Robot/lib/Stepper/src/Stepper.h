@@ -1,0 +1,49 @@
+#pragma once
+#include "Arduino.h"
+#include <ESP32_New_TimerInterrupt.h>
+#include "Timer.h"
+
+
+
+#define X_STEP_PIN GPIO_NUM_2
+#define X_DIR_PIN GPIO_NUM_15
+#define Y_STEP_PIN GPIO_NUM_4
+#define Y_DIR_PIN GPIO_NUM_5
+
+#define DRIVER_STEP_TIME 500
+
+#define _sign(x) ((x) >= 0 ? 1 : 0) 
+
+class Stepper {
+public:
+
+    Stepper(uint8_t step_pin, uint8_t dir_pin, uint8_t timer_number);
+
+    void step();
+
+    void move_steps(int steps);
+
+    void interruptHandler();
+
+    void set_velocity(float velocity);
+    float get_velocity();
+
+    void attach_timer_handler(bool (*timer_handler)(void *timerNo));
+    
+    ESP32Timer timer;
+
+private:
+    uint8_t _step_pin;
+    uint8_t _dir_pin;
+    volatile bool _step_flag = false;
+    bool _dir;
+    bool _is_moving;
+    volatile uint16_t _steps_counter;
+
+    int _vel = DRIVER_STEP_TIME;
+
+    int _pos = 0;
+
+    bool (*_timer_handler)(void *timerNo);
+    int get_step_interval();
+};

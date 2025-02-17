@@ -1,38 +1,70 @@
 #include <Arduino.h>
 
-const int enPin=8;
-const int stepXPin = 2; //X.STEP
-const int dirXPin = 5; // X.DIR
-const int stepYPin = 3; //Y.STEP
-const int dirYPin = 6; // Y.DIR
-const int stepZPin = 4; //Z.STEP
-const int dirZPin = 7; // Z.DIR
 
-int stepPin=stepXPin;
-int dirPin=dirXPin;
+#define _TIMERINTERRUPT_LOGLEVEL_     4
+#include <ESP32_New_TimerInterrupt.h>
+#include "Stepper.h"
+#include "GyverPortal.h"
 
-const int stepsPerRev=200;
-int pulseWidthMicros = 10;  // microseconds
-int millisBtwnSteps = 100;
+GyverPortal portal;
+
+Stepper motor_x(X_STEP_PIN, X_DIR_PIN, 0);
+Stepper motor_y(Y_STEP_PIN, Y_DIR_PIN, 2);
+
+bool IRAM_ATTR TimerHandler1(void *timerNo){
+  motor_x.interruptHandler();
+  return true;
+}
+
+bool IRAM_ATTR TimerHandler2(void *timerNo){
+  motor_y.interruptHandler();
+  return true;
+}
+
+void setupPortal();
+
+void build() {
+  GP.BUILD_BEGIN();
+  GP.THEME(GP_DARK);
+
+  GP.SLIDER("slider_vel", 0, 500, 1000, 0.1, 2);
+
+  GP.BUTTON("start", "Start");
+  GP.BUTTON("stop", "Stop");
+
+  GP.BUILD_END();
+}
+
+void action() {
+  if (portal.click()) {
+      if (portal.click("slider_vel")){
+          motor_x.set_velocity(portal.getFloat("slider_vel"));
+          Serial.println(motor_x.get_velocity());
+      }
+
+
+      if (portal.click("start")) {
+
+      }
+
+      if (portal.click("stop")) {
+
+      }
+  }
+}
 
 void setup() {
   Serial.begin(9600);
-  pinMode(enPin, OUTPUT);
-  digitalWrite(enPin, LOW);
-  pinMode(stepXPin, OUTPUT);
-  pinMode(dirXPin, OUTPUT);
 
-  pinMode(stepYPin, OUTPUT);
-  pinMode(dirYPin, OUTPUT);
- 
+  motor_x.attach_timer_handler(TimerHandler1);
+  motor_y.attach_timer_handler(TimerHandler2);
+  setupPortal();
   Serial.println(F("CNC Shield Initialized"));
 }
 
 void loop() {
-
+  portal.tick();
   static uint16_t steps_number;
-  static bool direction;
-
   static char key;
   if (Serial.available() > 1){
     key = Serial.read();
@@ -40,51 +72,42 @@ void loop() {
     switch (key){
       case 'f':
         steps_number = Serial.parseInt();
-        direction = true;
-        digitalWrite(dirXPin, direction);
-        for (uint16_t i = 0; i < steps_number; i++){
-          digitalWrite(stepXPin, HIGH);
-          delayMicroseconds(pulseWidthMicros);
-          digitalWrite(stepXPin, LOW);
-          delayMicroseconds(millisBtwnSteps);
-        }
+        motor_x.move_steps(steps_number);
         break;
 
-        case 'b':
-          steps_number = Serial.parseInt();
-          direction = false;
-          digitalWrite(dirXPin, direction);
-          for (uint16_t i = 0; i < steps_number; i++){
-            digitalWrite(stepXPin, HIGH);
-            delayMicroseconds(pulseWidthMicros);
-            digitalWrite(stepXPin, LOW);
-            delayMicroseconds(millisBtwnSteps);
-          }
-          break;
+      case 'b':
+        steps_number = Serial.parseInt();
+        motor_x.move_steps(-steps_number);
+        break;
 
-          case 'q':
-            steps_number = Serial.parseInt();
-            direction = true;
-            digitalWrite(dirYPin, direction);
-            for (uint16_t i = 0; i < steps_number; i++){
-              digitalWrite(stepYPin, HIGH);
-              delayMicroseconds(pulseWidthMicros);
-              digitalWrite(stepYPin, LOW);
-              delayMicroseconds(millisBtwnSteps);
-            }
-            break;
+      case 'q':
+        steps_number = Serial.parseInt();
+        motor_y.move_steps(steps_number);
+        break;
 
-          case 'w':
-            steps_number = Serial.parseInt();
-            direction = false;
-            digitalWrite(dirYPin, direction);
-            for (uint16_t i = 0; i < steps_number; i++){
-              digitalWrite(stepYPin, HIGH);
-              delayMicroseconds(pulseWidthMicros);
-              digitalWrite(stepYPin, LOW);
-              delayMicroseconds(millisBtwnSteps);
-            }
-            break;
+      case 'w':
+        steps_number = Serial.parseInt();
+        motor_y.move_steps(-steps_number);
+        break;
+
+      case 'v':
+        motor_x.set_velocity(Serial.parseInt());
+
+        break;
     }
   }
+}
+
+void setupPortal(){
+  WiFi.mode(WIFI_STA);
+  WiFi.begin("BCIT Robotics Club", "IWillBuildARobot");
+  while (WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      Serial.print(".");
+  }
+  Serial.println(WiFi.localIP());
+
+  portal.attachBuild(build);
+  portal.attach(action);
+  portal.start();
 }
