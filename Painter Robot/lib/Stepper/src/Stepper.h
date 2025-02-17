@@ -23,6 +23,10 @@ public:
 
     void move_steps(int steps);
 
+    void stop();
+
+    void start();
+
     void interruptHandler();
 
     void set_velocity(float velocity);
@@ -48,4 +52,5 @@ private:
 
     bool (*_timer_handler)(void *timerNo);
     int get_step_interval();
+    
 };

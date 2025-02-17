@@ -33,6 +33,9 @@ void build() {
   GP.BUTTON("start", "Start");
   GP.BUTTON("stop", "Stop");
 
+  GP.SLIDER("slider_x", 0, 0, 7000, 1);
+  GP.SLIDER("slider_y", 0, 0, 7000, 1);
+
   GP.BUILD_END();
 }
 
@@ -44,13 +47,23 @@ void action() {
           Serial.println(motor_x.get_velocity());
       }
 
+      if (portal.click("slider_x")){
+        motor_x.move_steps(portal.getInt("slider_x") - motor_x.get_pos());
+      }
+
+      if (portal.click("slider_y")){
+        motor_y.move_steps(portal.getInt("slider_y") - motor_y.get_pos());
+      }
+
 
       if (portal.click("start")) {
-
+        motor_x.start();
+        motor_y.start();
       }
 
       if (portal.click("stop")) {
-
+        motor_x.stop();
+        motor_y.stop();
       }
   }
 }

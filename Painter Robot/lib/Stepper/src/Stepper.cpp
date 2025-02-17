@@ -13,7 +13,7 @@ Stepper::Stepper(uint8_t step_pin, uint8_t dir_pin, uint8_t timer_number) : time
 void Stepper::move_steps(int steps){
     _dir = _sign(steps);
     digitalWrite(_dir_pin, _dir);
-    _is_moving = true;
+    // _is_moving = true;
     _steps_counter = abs(steps) * 2;
 
 }
@@ -69,4 +69,12 @@ float Stepper::get_velocity(){
 
 int Stepper::get_pos(){
     return _pos;
+}
+
+void Stepper::start(){
+    _is_moving = true;
+}
+
+void Stepper::stop(){
+    _is_moving = false;
 }
