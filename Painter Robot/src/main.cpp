@@ -5,6 +5,7 @@
 #include <ESP32_New_TimerInterrupt.h>
 #include "Stepper.h"
 #include "GyverPortal.h"
+#include "Timer.h"
 
 GyverPortal portal;
 
@@ -27,7 +28,7 @@ void build() {
   GP.BUILD_BEGIN();
   GP.THEME(GP_DARK);
 
-  GP.SLIDER("slider_vel", 0, 500, 1000, 0.1, 2);
+  GP.SLIDER("slider_vel", 500, 0, 1000, 0.1, 2);
 
   GP.BUTTON("start", "Start");
   GP.BUTTON("stop", "Stop");
@@ -39,6 +40,7 @@ void action() {
   if (portal.click()) {
       if (portal.click("slider_vel")){
           motor_x.set_velocity(portal.getFloat("slider_vel"));
+          motor_y.set_velocity(portal.getFloat("slider_vel"));
           Serial.println(motor_x.get_velocity());
       }
 
@@ -52,6 +54,8 @@ void action() {
       }
   }
 }
+
+Timer plotter_timer(100);
 
 void setup() {
   Serial.begin(9600);
@@ -92,9 +96,17 @@ void loop() {
 
       case 'v':
         motor_x.set_velocity(Serial.parseInt());
-
+        motor_y.set_velocity(motor_x.get_velocity());
         break;
     }
+  }
+
+  if (plotter_timer.isReady()){
+    Serial.print("{P(pos_x:");
+    Serial.print(motor_x.get_pos());
+    Serial.print(",pos_y:");
+    Serial.print(motor_y.get_pos());
+    Serial.print(")}");
   }
 }
 

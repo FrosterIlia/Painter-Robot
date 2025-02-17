@@ -31,6 +31,11 @@ void Stepper::interruptHandler(){
         digitalWrite(_step_pin, _step_flag ? 0 : 1);
         _step_flag = !_step_flag;
         _steps_counter--;
+        _pos_counter += _dir ? 1 : -1;
+        if (abs(_pos_counter) >= 2){
+            _pos += _dir ? 1 : -1;
+            _pos_counter = 0;
+        }
     }
    
 }
@@ -45,6 +50,7 @@ void Stepper::attach_timer_handler(bool (*timer_handler)(void *timerNo)){
 }
 
 void Stepper::set_velocity(float velocity){
+    _vel = velocity;
     if (_timer_handler == nullptr) {
         Serial.println("Error: Timer handler not attached!");
         return;
@@ -54,10 +60,13 @@ void Stepper::set_velocity(float velocity){
     timer.setInterval(_vel, _timer_handler);
     timer.enableTimer();
     Serial.println("2");
-    _vel = velocity;
+    
 }
 
 float Stepper::get_velocity(){
     return _vel;
 }
 
+int Stepper::get_pos(){
+    return _pos;
+}

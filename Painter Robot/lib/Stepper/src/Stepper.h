@@ -27,6 +27,7 @@ public:
 
     void set_velocity(float velocity);
     float get_velocity();
+    int get_pos();
 
     void attach_timer_handler(bool (*timer_handler)(void *timerNo));
     
@@ -39,10 +40,11 @@ private:
     bool _dir;
     bool _is_moving;
     volatile uint16_t _steps_counter;
+    int8_t _pos_counter = 0; // need to count pos every 2 interrupts
 
     int _vel = DRIVER_STEP_TIME;
 
-    int _pos = 0;
+    volatile int _pos = 0;
 
     bool (*_timer_handler)(void *timerNo);
     int get_step_interval();
