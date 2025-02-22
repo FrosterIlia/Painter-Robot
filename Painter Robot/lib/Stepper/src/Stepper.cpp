@@ -7,20 +7,19 @@ Stepper::Stepper(uint8_t step_pin, uint8_t dir_pin, uint8_t timer_number) : time
     _dir_pin = dir_pin;
     pinMode(step_pin, OUTPUT);
     pinMode(dir_pin, OUTPUT);
+    Serial.println("Initializing stepper");
 
 }
 
 void Stepper::move_steps(int steps){
-    _dir = _sign(steps);
+    _dir = _sign(_vel);
     digitalWrite(_dir_pin, _dir);
     // _is_moving = true;
     _steps_counter = abs(steps) * 2;
-
 }
 
 void Stepper::step(){
-    
-    
+
     delayMicroseconds(DRIVER_STEP_TIME);
     digitalWrite(_step_pin, LOW);
     delayMicroseconds(DRIVER_STEP_TIME);
@@ -51,13 +50,17 @@ void Stepper::attach_timer_handler(bool (*timer_handler)(void *timerNo)){
 
 void Stepper::set_velocity(float velocity){
     _vel = velocity;
+    if (_vel < 30) {
+        timer.disableTimer();
+        return;
+    } 
     if (_timer_handler == nullptr) {
         Serial.println("Error: Timer handler not attached!");
         return;
     }
     Serial.println("1");
     timer.disableTimer();
-    timer.setInterval(_vel, _timer_handler);
+    timer.setInterval(abs(_vel), _timer_handler);
     timer.enableTimer();
     Serial.println("2");
     

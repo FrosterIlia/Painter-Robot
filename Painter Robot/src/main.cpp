@@ -6,19 +6,19 @@
 #include "Stepper.h"
 #include "GyverPortal.h"
 #include "Timer.h"
+#include "Planner.h"
 
 GyverPortal portal;
 
-Stepper motor_x(X_STEP_PIN, X_DIR_PIN, 0);
-Stepper motor_y(Y_STEP_PIN, Y_DIR_PIN, 2);
+Planner planner;
 
 bool IRAM_ATTR TimerHandler1(void *timerNo){
-  motor_x.interruptHandler();
+  planner.stepper_x.interruptHandler();
   return true;
 }
 
 bool IRAM_ATTR TimerHandler2(void *timerNo){
-  motor_y.interruptHandler();
+  planner.stepper_y.interruptHandler();
   return true;
 }
 
@@ -42,28 +42,24 @@ void build() {
 void action() {
   if (portal.click()) {
       if (portal.click("slider_vel")){
-          motor_x.set_velocity(portal.getFloat("slider_vel"));
-          motor_y.set_velocity(portal.getFloat("slider_vel"));
-          Serial.println(motor_x.get_velocity());
+          planner.set_velocity(portal.getInt("slider_vel"));
       }
 
       if (portal.click("slider_x")){
-        motor_x.move_steps(portal.getInt("slider_x") - motor_x.get_pos());
+        planner.move(portal.getInt("slider_x"), portal.getInt("slider_y")); 
+        Serial.println(portal.getInt("slider_x"));
       }
 
       if (portal.click("slider_y")){
-        motor_y.move_steps(portal.getInt("slider_y") - motor_y.get_pos());
+        planner.move(portal.getInt("slider_x"), portal.getInt("slider_y")); 
       }
 
-
       if (portal.click("start")) {
-        motor_x.start();
-        motor_y.start();
+        planner.start();
       }
 
       if (portal.click("stop")) {
-        motor_x.stop();
-        motor_y.stop();
+        planner.stop();
       }
   }
 }
@@ -73,8 +69,7 @@ Timer plotter_timer(100);
 void setup() {
   Serial.begin(9600);
 
-  motor_x.attach_timer_handler(TimerHandler1);
-  motor_y.attach_timer_handler(TimerHandler2);
+  planner.init_steppers(TimerHandler1, TimerHandler2);
   setupPortal();
   Serial.println(F("CNC Shield Initialized"));
 }
@@ -89,36 +84,35 @@ void loop() {
     switch (key){
       case 'f':
         steps_number = Serial.parseInt();
-        motor_x.move_steps(steps_number);
+        // motor_x.move_steps(steps_number);
         break;
 
       case 'b':
         steps_number = Serial.parseInt();
-        motor_x.move_steps(-steps_number);
+        // motor_x.move_steps(-steps_number);
         break;
 
       case 'q':
         steps_number = Serial.parseInt();
-        motor_y.move_steps(steps_number);
+        // motor_y.move_steps(steps_number);
         break;
 
       case 'w':
         steps_number = Serial.parseInt();
-        motor_y.move_steps(-steps_number);
+        // motor_y.move_steps(-steps_number);
         break;
 
       case 'v':
-        motor_x.set_velocity(Serial.parseInt());
-        motor_y.set_velocity(motor_x.get_velocity());
+        planner.set_velocity(Serial.parseInt());
         break;
     }
   }
 
   if (plotter_timer.isReady()){
     Serial.print("{P(pos_x:");
-    Serial.print(motor_x.get_pos());
+    Serial.print(planner.get_pos_x());
     Serial.print(",pos_y:");
-    Serial.print(motor_y.get_pos());
+    Serial.print(planner.get_pos_y());
     Serial.print(")}");
   }
 }

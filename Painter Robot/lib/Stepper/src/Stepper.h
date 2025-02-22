@@ -4,12 +4,6 @@
 #include "Timer.h"
 
 
-
-#define X_STEP_PIN GPIO_NUM_2
-#define X_DIR_PIN GPIO_NUM_15
-#define Y_STEP_PIN GPIO_NUM_4
-#define Y_DIR_PIN GPIO_NUM_5
-
 #define DRIVER_STEP_TIME 500
 
 #define _sign(x) ((x) >= 0 ? 1 : 0) 
