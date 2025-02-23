@@ -6,6 +6,7 @@
 #include "Stepper.h"
 #include "GyverPortal.h"
 #include "Timer.h"
+#include "TimerMicros.h"
 #include "Planner.h"
 
 GyverPortal portal;
@@ -46,15 +47,18 @@ void action() {
       }
 
       if (portal.click("slider_x")){
-        planner.move(portal.getInt("slider_x"), portal.getInt("slider_y")); 
-        Serial.println(portal.getInt("slider_x"));
+        planner.set_target_x(portal.getFloat("slider_x"));
+        // planner.move(portal.getFloat("slider_x"), portal.getFloat("slider_y")); 
+        Serial.println(portal.getFloat("slider_x"));
       }
 
       if (portal.click("slider_y")){
-        planner.move(portal.getInt("slider_x"), portal.getInt("slider_y")); 
+        planner.set_target_y(portal.getFloat("slider_y"));
+        // planner.move(portal.getInt("slider_x"), portal.getInt("slider_y")); 
       }
 
       if (portal.click("start")) {
+        planner.move(); 
         planner.start();
       }
 
@@ -75,6 +79,8 @@ void setup() {
 }
 
 void loop() {
+
+  planner.tick();
   portal.tick();
   static uint16_t steps_number;
   static char key;
@@ -113,6 +119,8 @@ void loop() {
     Serial.print(planner.get_pos_x());
     Serial.print(",pos_y:");
     Serial.print(planner.get_pos_y());
+    Serial.print(",vel:");
+    Serial.print(planner.get_motorX().get_velocity());
     Serial.print(")}");
   }
 }
