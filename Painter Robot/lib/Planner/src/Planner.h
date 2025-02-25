@@ -14,7 +14,7 @@ class Planner{
 
         Planner();
 
-        void init_steppers(bool (*_timer_handler1)(void *timerNo), bool (*_timer_handler2)(void *timerNo));
+        void init_steppers(void (*_timer_handler1)(), void (*_timer_handler2)());
 
         void tick();
 
@@ -41,22 +41,18 @@ class Planner{
     private:
     
 
-    float _target_vel = 1000; // steps/s
-    float _current_vel;
+        float _target_vel = 1000; // steps/s
+        float _current_vel;
 
-    float _target_x;
-    float _target_y;
+        float _target_x;
+        float _target_y;
 
-    bool _is_moving = 0;
+        bool _is_moving = 0;
 
-    kinematics _x_kinematics;
-    kinematics _y_kinematics;
+        kinematics _x_kinematics;
+        kinematics _y_kinematics;
 
-    void calculate_stepper_velocity();
-    void calculate_kinematics();
-
-
-    
-    
+        void calculate_stepper_velocity();
+        void compute_kinematics();    
     
 };

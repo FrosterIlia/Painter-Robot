@@ -1,6 +1,5 @@
 #pragma once
 #include "Arduino.h"
-#include <ESP32_New_TimerInterrupt.h>
 #include "Timer.h"
 
 
@@ -30,9 +29,10 @@ public:
     int get_steps_count() {return _steps_counter;}
     int get_steps_count_set() {return _steps_counter_set;}
 
-    void attach_timer_handler(bool (*timer_handler)(void *timerNo));
+    void attach_timer_handler(void (*timer_handler)());
     
-    ESP32Timer timer;
+    // ESP32Timer timer;
+    hw_timer_t *timer = NULL;
 
 private:
     uint8_t _step_pin;
@@ -48,7 +48,7 @@ private:
 
     volatile int _pos = 0;
 
-    bool (*_timer_handler)(void *timerNo);
+    void (*_timer_handler)();
     int get_step_interval();
 
     // kinematics _kinematics;
@@ -56,10 +56,8 @@ private:
 };
 
 struct kinematics{
-    float t_total;
-    float t_acc;
     int total_steps;
-    int steps_acc = 300;
+    int steps_acc;
     float target_vel;
     float min_vel;
     float max_vel;

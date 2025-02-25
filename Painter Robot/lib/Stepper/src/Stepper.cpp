@@ -1,14 +1,21 @@
 #include "Stepper.h"
 
 
-Stepper::Stepper(uint8_t step_pin, uint8_t dir_pin, uint8_t timer_number) : timer(timer_number) {
+Stepper::Stepper(uint8_t step_pin, uint8_t dir_pin, uint8_t timer_number) {
 
     _step_pin = step_pin;
     _dir_pin = dir_pin;
     pinMode(step_pin, OUTPUT);
     pinMode(dir_pin, OUTPUT);
-    Serial.println("Initializing stepper");
-
+    
+    timer = timerBegin(timer_number, 80, true);
+    if (timer == NULL) Serial.println("timer not initialized");
+    else{
+        timerAlarmWrite(timer, 10000, true); // Set initial frequency (interrupt every 10ms)
+        timerAlarmEnable(timer); // Enable the timer
+        Serial.println("Stepper initialized");
+    }
+    
 }
 
 void Stepper::move_steps(int steps){
@@ -38,9 +45,9 @@ int Stepper::get_step_interval(){
     return (int)(1/_vel);
 }
 
-void Stepper::attach_timer_handler(bool (*timer_handler)(void *timerNo)){
+void Stepper::attach_timer_handler(void (*timer_handler)()){
     _timer_handler = timer_handler;
-    timer.attachInterruptInterval(DRIVER_STEP_TIME, _timer_handler);
+    timerAttachInterrupt(timer, _timer_handler, 1);
     Serial.println("successfully attached interrupt ");
 }
 
@@ -49,20 +56,17 @@ void Stepper::set_velocity(float velocity){
     _dir = _sign(_vel);
     digitalWrite(_dir_pin, _dir);
     if (abs(_vel) < 30) {
-        timer.disableTimer();
+        // timerStop(timer);
         return;
     } 
     else {
-        timer.enableTimer();
+        timerStart(timer);
     }
     if (_timer_handler == nullptr) {
         Serial.println("Error: Timer handler not attached!");
         return;
     }
-    timer.disableTimer();
-    timer.setInterval((int)abs(1000000 / (abs(_vel)*2)), _timer_handler);
-    timer.enableTimer();
-    
+    timerAlarmWrite(timer, (int)abs(1000000 / (abs(_vel)*2)), true);
 }
 
 float Stepper::get_velocity(){

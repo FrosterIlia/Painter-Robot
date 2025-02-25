@@ -1,8 +1,6 @@
 #include <Arduino.h>
 
 
-#define _TIMERINTERRUPT_LOGLEVEL_     4
-#include <ESP32_New_TimerInterrupt.h>
 #include "Stepper.h"
 #include "GyverPortal.h"
 #include "Timer.h"
@@ -13,14 +11,13 @@ GyverPortal portal;
 
 Planner planner;
 
-bool IRAM_ATTR TimerHandler1(void *timerNo){
+void IRAM_ATTR TimerHandler1(){
   planner.stepper_x.interruptHandler();
-  return true;
+  // planner.tick();
 }
 
-bool IRAM_ATTR TimerHandler2(void *timerNo){
+void IRAM_ATTR TimerHandler2(){
   planner.stepper_y.interruptHandler();
-  return true;
 }
 
 void setupPortal();
@@ -71,9 +68,9 @@ void action() {
 Timer plotter_timer(100);
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
-  planner.init_steppers(TimerHandler1, TimerHandler2);
+  planner.init_steppers(&TimerHandler1, &TimerHandler2);
   setupPortal();
   Serial.println(F("CNC Shield Initialized"));
 }
@@ -82,37 +79,38 @@ void loop() {
 
   planner.tick();
   portal.tick();
-  static uint16_t steps_number;
-  static char key;
-  if (Serial.available() > 1){
-    key = Serial.read();
-    Serial.println(key);
-    switch (key){
-      case 'f':
-        steps_number = Serial.parseInt();
-        // motor_x.move_steps(steps_number);
-        break;
 
-      case 'b':
-        steps_number = Serial.parseInt();
-        // motor_x.move_steps(-steps_number);
-        break;
+  // static uint16_t steps_number;
+  // static char key;
+  // if (Serial.available() > 1){
+  //   key = Serial.read();
+  //   Serial.println(key);
+  //   switch (key){
+  //     case 'f':
+  //       steps_number = Serial.parseInt();
+  //       // motor_x.move_steps(steps_number);
+  //       break;
 
-      case 'q':
-        steps_number = Serial.parseInt();
-        // motor_y.move_steps(steps_number);
-        break;
+  //     case 'b':
+  //       steps_number = Serial.parseInt();
+  //       // motor_x.move_steps(-steps_number);
+  //       break;
 
-      case 'w':
-        steps_number = Serial.parseInt();
-        // motor_y.move_steps(-steps_number);
-        break;
+  //     case 'q':
+  //       steps_number = Serial.parseInt();
+  //       // motor_y.move_steps(steps_number);
+  //       break;
 
-      case 'v':
-        planner.set_velocity(Serial.parseInt());
-        break;
-    }
-  }
+  //     case 'w':
+  //       steps_number = Serial.parseInt();
+  //       // motor_y.move_steps(-steps_number);
+  //       break;
+
+  //     case 'v':
+  //       planner.set_velocity(Serial.parseInt());
+  //       break;
+  //   }
+  // }
 
   if (plotter_timer.isReady()){
     Serial.print("{P(pos_x:");
