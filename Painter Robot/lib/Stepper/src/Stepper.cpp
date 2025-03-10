@@ -9,9 +9,9 @@ Stepper::Stepper(uint8_t step_pin, uint8_t dir_pin, uint8_t timer_number) {
     pinMode(dir_pin, OUTPUT);
     
     timer = timerBegin(timer_number, 80, true);
-    if (timer == NULL) Serial.println("timer not initialized");
+    if (timer == NULL) Serial.println("Stepper timer not initialized");
     else{
-        timerAlarmWrite(timer, 10000, true); // Set initial frequency (interrupt every 10ms)
+        timerAlarmWrite(timer, 10, true); // Set initial frequency (interrupt every 100us)
         timerAlarmEnable(timer); // Enable the timer
         Serial.println("Stepper initialized");
     }
@@ -19,23 +19,31 @@ Stepper::Stepper(uint8_t step_pin, uint8_t dir_pin, uint8_t timer_number) {
 }
 
 void Stepper::move_steps(int steps){
-    _dir = _sign(_vel);
-    // Serial.println(_dir);
-    digitalWrite(_dir_pin, _dir);
-    _is_moving = true;
-    _steps_counter = abs(steps) * 2;
-    _steps_counter_set = abs(steps);
+    // _dir = _sign(_vel);
+    // // Serial.println(_dir);
+    // digitalWrite(_dir_pin, _dir);
+    // _is_moving = true;
+    // _steps_counter = abs(steps) * 2;
+    // _steps_counter_set = abs(steps);
 }
 
 
 void Stepper::interruptHandler(){
-    if (_is_moving && _steps_counter > 0){
+    if (_is_moving && abs(_steps_counter) > 0){
+        digitalWrite(_dir_pin, _steps_counter > 0 ? 1 : 0);
         digitalWrite(_step_pin, _step_flag ? 0 : 1);
         _step_flag = !_step_flag;
-        _steps_counter--;
-        _pos_counter += _dir ? 1 : -1;
+        if (_steps_counter > 0){
+            _steps_counter--;
+            _pos_counter--;
+        } 
+        else{
+            _steps_counter++;
+            _pos_counter++;
+        } 
+        
         if (abs(_pos_counter) >= 2){
-            _pos += _dir ? 1 : -1;
+            _pos += _pos_counter > 0 ? -1 : 1;
             _pos_counter = 0;
         }
     }
@@ -45,28 +53,19 @@ int Stepper::get_step_interval(){
     return (int)(1/_vel);
 }
 
+void Stepper::step(bool dir){
+    if (dir) _steps_counter += 2;
+    else _steps_counter -= 2;
+}
+
 void Stepper::attach_timer_handler(void (*timer_handler)()){
     _timer_handler = timer_handler;
     timerAttachInterrupt(timer, _timer_handler, 1);
-    Serial.println("successfully attached interrupt ");
+    Serial.println("Successfully attached stepper interrupt ");
 }
 
 void Stepper::set_velocity(float velocity){
-    _vel = velocity;
-    _dir = _sign(_vel);
-    digitalWrite(_dir_pin, _dir);
-    if (abs(_vel) < 30) {
-        // timerStop(timer);
-        return;
-    } 
-    else {
-        timerStart(timer);
-    }
-    if (_timer_handler == nullptr) {
-        Serial.println("Error: Timer handler not attached!");
-        return;
-    }
-    timerAlarmWrite(timer, (int)abs(1000000 / (abs(_vel)*2)), true);
+
 }
 
 float Stepper::get_velocity(){
@@ -78,7 +77,6 @@ int Stepper::get_pos(){
 }
 
 void Stepper::start(){
-    Serial.println(_steps_counter);
     _is_moving = true;
 }
 

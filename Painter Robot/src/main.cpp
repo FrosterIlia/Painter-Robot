@@ -1,6 +1,5 @@
 #include <Arduino.h>
 
-
 #include "Stepper.h"
 #include "GyverPortal.h"
 #include "Timer.h"
@@ -9,15 +8,18 @@
 
 GyverPortal portal;
 
-Planner planner;
+Planner planner(2);
 
 void IRAM_ATTR TimerHandler1(){
   planner.stepper_x.interruptHandler();
-  // planner.tick();
 }
 
 void IRAM_ATTR TimerHandler2(){
   planner.stepper_y.interruptHandler();
+}
+
+void IRAM_ATTR PlannerTimerHandler(){
+  planner.interruptHandler();
 }
 
 void setupPortal();
@@ -45,13 +47,11 @@ void action() {
 
       if (portal.click("slider_x")){
         planner.set_target_x(portal.getFloat("slider_x"));
-        // planner.move(portal.getFloat("slider_x"), portal.getFloat("slider_y")); 
         Serial.println(portal.getFloat("slider_x"));
       }
 
       if (portal.click("slider_y")){
         planner.set_target_y(portal.getFloat("slider_y"));
-        // planner.move(portal.getInt("slider_x"), portal.getInt("slider_y")); 
       }
 
       if (portal.click("start")) {
@@ -71,46 +71,39 @@ void setup() {
   Serial.begin(115200);
 
   planner.init_steppers(&TimerHandler1, &TimerHandler2);
+  planner.attach_interrupt_handler(&PlannerTimerHandler);
   setupPortal();
   Serial.println(F("CNC Shield Initialized"));
 }
 
+uint32_t myTimer = millis();
+
 void loop() {
-
+  // Serial.println(millis() - myTimer);
   planner.tick();
+  // myTimer = millis();
   portal.tick();
+  
 
-  // static uint16_t steps_number;
-  // static char key;
-  // if (Serial.available() > 1){
-  //   key = Serial.read();
-  //   Serial.println(key);
-  //   switch (key){
-  //     case 'f':
-  //       steps_number = Serial.parseInt();
-  //       // motor_x.move_steps(steps_number);
-  //       break;
 
-  //     case 'b':
-  //       steps_number = Serial.parseInt();
-  //       // motor_x.move_steps(-steps_number);
-  //       break;
+  static int steps_number;
+  static char key;
+  if (Serial.available() > 1){
+    key = Serial.read();
+    Serial.println(key);
+    switch (key){
+      case 'f':
+        steps_number = Serial.parseInt();
+        Serial.println(steps_number);
+        planner.start();
+        for (int i = 0; i < abs(steps_number); i++){
+          planner.stepper_x.step(_sign(steps_number));
+          planner.stepper_y.step(_sign(steps_number));
+        }
+        break;
 
-  //     case 'q':
-  //       steps_number = Serial.parseInt();
-  //       // motor_y.move_steps(steps_number);
-  //       break;
-
-  //     case 'w':
-  //       steps_number = Serial.parseInt();
-  //       // motor_y.move_steps(-steps_number);
-  //       break;
-
-  //     case 'v':
-  //       planner.set_velocity(Serial.parseInt());
-  //       break;
-  //   }
-  // }
+    }
+  }
 
   if (plotter_timer.isReady()){
     Serial.print("{P(pos_x:");
@@ -118,7 +111,7 @@ void loop() {
     Serial.print(",pos_y:");
     Serial.print(planner.get_pos_y());
     Serial.print(",vel:");
-    Serial.print(planner.get_motorX().get_velocity());
+    Serial.print(planner.get_velocity());
     Serial.print(")}");
   }
 }

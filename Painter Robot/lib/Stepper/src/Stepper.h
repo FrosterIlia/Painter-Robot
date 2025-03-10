@@ -12,7 +12,7 @@ public:
 
     Stepper(uint8_t step_pin, uint8_t dir_pin, uint8_t timer_number);
 
-    void step();
+    void step(bool dir);
 
     void move_steps(int steps);
 
@@ -21,6 +21,7 @@ public:
     void start();
 
     void interruptHandler();
+
 
     void set_velocity(float velocity);
     float get_velocity();
@@ -31,7 +32,6 @@ public:
 
     void attach_timer_handler(void (*timer_handler)());
     
-    // ESP32Timer timer;
     hw_timer_t *timer = NULL;
 
 private:
@@ -40,8 +40,8 @@ private:
     volatile bool _step_flag = false;
     bool _dir;
     bool _is_moving;
-    volatile uint16_t _steps_counter;
-    uint16_t _steps_counter_set;
+    volatile int _steps_counter;
+    int _steps_counter_set;
     int8_t _pos_counter = 0; // need to count pos every 2 interrupts
 
     int _vel = DRIVER_STEP_TIME;
@@ -50,16 +50,6 @@ private:
 
     void (*_timer_handler)();
     int get_step_interval();
-
-    // kinematics _kinematics;
     
 };
 
-struct kinematics{
-    int total_steps;
-    int steps_acc;
-    float target_vel;
-    float min_vel;
-    float max_vel;
-
-};

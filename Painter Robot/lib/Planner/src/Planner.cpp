@@ -1,46 +1,48 @@
 #include "Planner.h"
 
-Planner::Planner() : stepper_x(X_STEP_PIN, X_DIR_PIN, 0), stepper_y(Y_STEP_PIN, Y_DIR_PIN, 1){
+
+Planner::Planner(int timer_number) : stepper_x(X_STEP_PIN, X_DIR_PIN, 0), stepper_y(Y_STEP_PIN, Y_DIR_PIN, 1){
+
+    _timer = timerBegin(timer_number, 80, true);
+    if (_timer == NULL) Serial.println("Planner timer not initialized");
+    else{
+        timerAlarmWrite(_timer, 1000000 / (2 * _vel), true); 
+        timerAlarmEnable(_timer); // Enable the timer
+        Serial.println("Planner initialized");
+    }
 }
 
 void Planner::tick(){
-    if (_target_x == stepper_x.get_pos() && _target_y == stepper_y.get_pos()) _is_moving = false;
-    else{
-        if (_is_moving){
-            int steps_moved_x = stepper_x.get_steps_count_set() - stepper_x.get_steps_count() / 2;
-            int direction_x = _x_kinematics.target_vel >= 0 ? 1 : -1;
-            if (steps_moved_x <= _x_kinematics.steps_acc){ // acceleration
-                stepper_x.set_velocity((_x_kinematics.min_vel + steps_moved_x * (_x_kinematics.max_vel - _x_kinematics.min_vel) / _x_kinematics.steps_acc) * direction_x);
-            }
-            else if (steps_moved_x > _x_kinematics.steps_acc && steps_moved_x < _x_kinematics.total_steps - _x_kinematics.steps_acc){ // max speed
-                if (stepper_x.get_velocity() != _x_kinematics.max_vel) stepper_x.set_velocity(_x_kinematics.max_vel * direction_x);
-            }
-            else if (stepper_x.get_steps_count() <= _x_kinematics.steps_acc){ // deceleration
-                stepper_x.set_velocity((_x_kinematics.max_vel - (_x_kinematics.steps_acc - stepper_x.get_steps_count()) * (_x_kinematics.max_vel - _x_kinematics.min_vel) / _x_kinematics.steps_acc) * direction_x);
-            }
+    interruptHandler();
+}
 
-            int steps_moved_y = stepper_y.get_steps_count_set() - stepper_y.get_steps_count() / 2;
-            int direction_y = _y_kinematics.target_vel >= 0 ? 1 : -1;
-            if (steps_moved_y <= _y_kinematics.steps_acc){ // acceleration
-                stepper_y.set_velocity((_y_kinematics.min_vel + steps_moved_y * (_y_kinematics.max_vel - _y_kinematics.min_vel) / _y_kinematics.steps_acc) * direction_y);
-            }
-            else if (steps_moved_y > _y_kinematics.steps_acc && steps_moved_y < _y_kinematics.total_steps - _y_kinematics.steps_acc){ // max speed
-                if (stepper_y.get_velocity() != _y_kinematics.max_vel) stepper_y.set_velocity(_y_kinematics.max_vel * direction_y);
-            }
-            else if (stepper_y.get_steps_count() <= _y_kinematics.steps_acc){ // deceleration
-                stepper_y.set_velocity((_y_kinematics.max_vel - (_y_kinematics.steps_acc - stepper_y.get_steps_count()) * (_y_kinematics.max_vel - _y_kinematics.min_vel) / _y_kinematics.steps_acc) * direction_y);
-            }
-        }
-    }
-    
+void Planner::attach_interrupt_handler(void (*timer_handler)()){
+    _timer_handler = timer_handler;
+    timerAttachInterrupt(_timer, _timer_handler, 1);
+    Serial.println("Successfully attached planner interrupt ");
 }
 
 void Planner::move(){
-    
-    compute_kinematics();
-    stepper_x.move_steps(abs(_target_x - stepper_x.get_pos()));
-    stepper_y.move_steps(abs(_target_y - stepper_y.get_pos()));
-    _is_moving = true;
+
+    _x0 = stepper_x.get_pos();
+    _x1 = _target_x;
+
+    _y0 = stepper_y.get_pos();
+    _y1 = _target_y;
+
+    _dx = _x1 - _x0;
+    _dy = _y1 - _y0;
+
+    if (abs(_x0 - _x1) > abs(_y0 - _y1)){ // h
+        _dir = _dy < 0 ? -1 : 1;
+        _movement_counter = abs(_dx);
+    }
+    else{ // v
+        _dir = _dx < 0 ? -1 : 1;
+        _movement_counter = abs(_dy);
+    }
+
+
 }
 
 void Planner::init_steppers(void (*_timer_handler1)(), void (*_timer_handler2)()){
@@ -59,27 +61,48 @@ void Planner::start(){
 }
 
 void Planner::set_velocity(int velocity){
-    _target_vel = velocity;
+    _vel = velocity;
+    timerAlarmWrite(_timer, 1000000 / (2 * _vel), true); 
+
 }
 
 
-void Planner::compute_kinematics(){
 
-    _x_kinematics.steps_acc = 1000;
-    _y_kinematics.steps_acc = 1000;
+void Planner::interruptHandler(){
 
-    _x_kinematics.total_steps = abs(_target_x - stepper_x.get_pos());
-    _y_kinematics.total_steps = abs(_target_y - stepper_y.get_pos());
+    if (_movement_counter > 0){
+        _movement_counter--;
+        if (abs(_x0 - _x1) > abs(_y0 - _y1)){
+            draw_line_h();
+        }
+        else{
+            draw_line_v();
+        }
+    }
+}
 
-    float angle = atan2(_target_y - stepper_y.get_pos(), _target_x - stepper_x.get_pos());
-    _x_kinematics.target_vel = _target_vel * cos(angle);
-    _y_kinematics.target_vel = _target_vel * sin(angle);
+void Planner::draw_line_h() {
+    if (_dx != 0) {
+        // Fixed-point arithmetic for y2 calculation
+        int32_t delta_x = stepper_x.get_pos() - _x0 + _dir;
+        int32_t y2 = (_dy * delta_x) / _dx + _y0;
 
-    //TODO calculate min_vel and max_vel in terms of target_vel
-    _x_kinematics.min_vel = 700;
-    _y_kinematics.min_vel = 700;
+        stepper_x.step(_sign(_dx));
+        if (abs(stepper_y.get_pos() + _dir - y2) <= abs(stepper_y.get_pos() - y2)) {
+            stepper_y.step(_sign(_dir));
+        }
+    }
+}
 
-    _x_kinematics.max_vel = 3000;
-    _y_kinematics.max_vel = 3000;
+void Planner::draw_line_v() {
+    if (_dy != 0) {
+        // Fixed-point arithmetic for x2 calculation
+        int32_t delta_y = stepper_y.get_pos() - _y0 + _dir;
+        int32_t x2 = (_dx * delta_y) / _dy + _x0;
 
+        stepper_y.step(_sign(_dy));
+        if (abs(stepper_x.get_pos() + _dir - x2) <= abs(stepper_x.get_pos() - x2)) {
+            stepper_x.step(_sign(_dir));
+        }
+    }
 }
