@@ -25,8 +25,11 @@ class Planner{
         void stop();
         void start();
 
-        int get_velocity() {return _vel;}
-        void set_velocity(int velocity);
+        int get_target_velocity() {return _target_vel;}
+        int get_current_velocity() {return _current_vel;}
+
+        void set_target_velocity(int velocity);
+        void set_current_velocity(int velocity);
 
         int get_pos_x() {return stepper_x.get_pos();}
         int get_pos_y() {return stepper_y.get_pos();}
@@ -44,7 +47,12 @@ class Planner{
         hw_timer_t *_timer = NULL;
         void (*_timer_handler)();
 
-        int _vel = 1000; // steps/s
+        volatile int _target_vel = 1000; // steps/s
+
+        volatile int _min_vel = 500;
+        volatile int _max_vel = 1500;
+        volatile int _steps_accel;
+        volatile int _current_vel = _target_vel;
 
         int _target_x;
         int _target_y;

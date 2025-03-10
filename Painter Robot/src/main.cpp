@@ -42,7 +42,7 @@ void build() {
 void action() {
   if (portal.click()) {
       if (portal.click("slider_vel")){
-          planner.set_velocity(portal.getInt("slider_vel"));
+          planner.set_target_velocity(portal.getInt("slider_vel"));
       }
 
       if (portal.click("slider_x")){
@@ -80,7 +80,7 @@ uint32_t myTimer = millis();
 
 void loop() {
   // Serial.println(millis() - myTimer);
-  planner.tick();
+  // planner.tick();
   // myTimer = millis();
   portal.tick();
   
@@ -111,7 +111,7 @@ void loop() {
     Serial.print(",pos_y:");
     Serial.print(planner.get_pos_y());
     Serial.print(",vel:");
-    Serial.print(planner.get_velocity());
+    Serial.print(planner.get_current_velocity());
     Serial.print(")}");
   }
 }

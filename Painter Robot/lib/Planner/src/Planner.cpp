@@ -6,7 +6,7 @@ Planner::Planner(int timer_number) : stepper_x(X_STEP_PIN, X_DIR_PIN, 0), steppe
     _timer = timerBegin(timer_number, 80, true);
     if (_timer == NULL) Serial.println("Planner timer not initialized");
     else{
-        timerAlarmWrite(_timer, 1000000 / (2 * _vel), true); 
+        timerAlarmWrite(_timer, 1000000 / (2 * _current_vel), true); 
         timerAlarmEnable(_timer); // Enable the timer
         Serial.println("Planner initialized");
     }
@@ -33,6 +33,8 @@ void Planner::move(){
     _dx = _x1 - _x0;
     _dy = _y1 - _y0;
 
+    
+
     if (abs(_x0 - _x1) > abs(_y0 - _y1)){ // h
         _dir = _dy < 0 ? -1 : 1;
         _movement_counter = abs(_dx);
@@ -42,7 +44,9 @@ void Planner::move(){
         _movement_counter = abs(_dy);
     }
 
+    set_current_velocity(_min_vel);
 
+    _steps_accel = _movement_counter * 0.2;
 }
 
 void Planner::init_steppers(void (*_timer_handler1)(), void (*_timer_handler2)()){
@@ -60,13 +64,14 @@ void Planner::start(){
     stepper_y.start();
 }
 
-void Planner::set_velocity(int velocity){
-    _vel = velocity;
-    timerAlarmWrite(_timer, 1000000 / (2 * _vel), true); 
-
+void Planner::set_current_velocity(int velocity){
+    _current_vel = velocity;
+    timerAlarmWrite(_timer, 1000000 / (2 * _current_vel), true); 
 }
 
-
+void Planner::set_target_velocity(int velocity){
+    _target_vel = velocity;
+}
 
 void Planner::interruptHandler(){
 
@@ -74,9 +79,34 @@ void Planner::interruptHandler(){
         _movement_counter--;
         if (abs(_x0 - _x1) > abs(_y0 - _y1)){
             draw_line_h();
+            int x = abs(_dx) - _movement_counter;
+
+            // Acceleration
+            if (x < _steps_accel){
+                set_current_velocity(_min_vel + x * (_max_vel - _min_vel) / _steps_accel);
+            }
+            else if (x >= _steps_accel && _movement_counter >= _steps_accel){
+                set_current_velocity(_max_vel);
+            }
+            else{
+                set_current_velocity(_max_vel - (_steps_accel - abs(_dx) + x) * (_max_vel - _min_vel) / _steps_accel);
+            }
         }
         else{
             draw_line_v();
+
+            int y = abs(_dy) - _movement_counter;
+
+            // Acceleration
+            if (y < _steps_accel){
+                set_current_velocity(_min_vel + y * (_max_vel - _min_vel) / _steps_accel);
+            }
+            else if (y >= _steps_accel && _movement_counter >= _steps_accel){
+                set_current_velocity(_max_vel);
+            }
+            else{
+                set_current_velocity(_max_vel - (_steps_accel - abs(_dy) + y) * (_max_vel - _min_vel) / _steps_accel);
+            }
         }
     }
 }
