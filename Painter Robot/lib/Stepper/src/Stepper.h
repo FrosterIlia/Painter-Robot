@@ -22,7 +22,6 @@ public:
 
     void interruptHandler();
 
-
     void set_velocity(float velocity);
     float get_velocity();
     int get_pos();

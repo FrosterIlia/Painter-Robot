@@ -2,10 +2,10 @@
 #include "Stepper.h"
 
 
-#define X_STEP_PIN GPIO_NUM_19
-#define X_DIR_PIN GPIO_NUM_18
-#define Y_STEP_PIN GPIO_NUM_4
-#define Y_DIR_PIN GPIO_NUM_5
+#define Y_STEP_PIN GPIO_NUM_19
+#define Y_DIR_PIN GPIO_NUM_18
+#define X_STEP_PIN GPIO_NUM_4
+#define X_DIR_PIN GPIO_NUM_5
 
 #define ACCELERATION_REGION 0.2
 
@@ -31,13 +31,12 @@ class Planner{
         void set_target_velocity(int velocity);
         void set_current_velocity(int velocity);
 
-        int get_pos_x() {return stepper_x.get_pos();}
-        int get_pos_y() {return stepper_y.get_pos();}
-
         void set_target_x(int value) {_target_x = value;}
         void set_target_y(int value) {_target_y = value;}
 
         void interruptHandler();
+
+        bool done_moving();
 
         Stepper stepper_x;
         Stepper stepper_y;

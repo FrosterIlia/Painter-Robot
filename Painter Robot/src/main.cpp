@@ -6,6 +6,9 @@
 #include "TimerMicros.h"
 #include "Planner.h"
 
+#define VIBRATION_AMOUNT 40
+#define VIBRATION_STEPS 200
+
 GyverPortal portal;
 
 Planner planner(2);
@@ -21,6 +24,8 @@ void IRAM_ATTR TimerHandler2(){
 void IRAM_ATTR PlannerTimerHandler(){
   planner.interruptHandler();
 }
+
+void vibrate(uint16_t value);
 
 void setupPortal();
 
@@ -78,13 +83,22 @@ void setup() {
 
 uint32_t myTimer = millis();
 
+enum POSITIONS {PINK, GREEN, BLUE, WHITE};
+
+int positions_x[] = {0, 5000, 0, 5000};
+int positions_y[] = {0, 0, 5000, 5000};
+
+bool moving = false;
+
 void loop() {
-  // Serial.println(millis() - myTimer);
-  // planner.tick();
-  // myTimer = millis();
+
   portal.tick();
   
-
+  if (moving && planner.done_moving()){
+    moving = false;
+    Serial.println("done");
+    // vibrate(VIBRATION_AMOUNT);
+  }
 
   static int steps_number;
   static char key;
@@ -102,18 +116,36 @@ void loop() {
         }
         break;
 
+      case 'm':
+        int position = Serial.parseInt();
+        if (position == 4){
+          planner.start();
+          vibrate(VIBRATION_AMOUNT);
+          Serial.println("vibrated");
+          break;
+        }
+
+        planner.set_target_x(positions_x[position]);
+        planner.set_target_y(positions_y[position]);
+
+        planner.move();
+        planner.start();
+
+        moving = true;
+      break;
+
     }
   }
 
-  if (plotter_timer.isReady()){
-    Serial.print("{P(pos_x:");
-    Serial.print(planner.get_pos_x());
-    Serial.print(",pos_y:");
-    Serial.print(planner.get_pos_y());
-    Serial.print(",vel:");
-    Serial.print(planner.get_current_velocity());
-    Serial.print(")}");
-  }
+  // if (plotter_timer.isReady()){
+  //   Serial.print("{P(pos_x:");
+  //   Serial.print(planner.get_pos_x());
+  //   Serial.print(",pos_y:");
+  //   Serial.print(planner.get_pos_y());
+  //   Serial.print(",vel:");
+  //   Serial.print(planner.get_current_velocity());
+  //   Serial.print(")}");
+  // }
 }
 
 void setupPortal(){
@@ -128,4 +160,20 @@ void setupPortal(){
   portal.attachBuild(build);
   portal.attach(action);
   portal.start();
+}
+
+void vibrate(uint16_t value){
+  for (uint16_t i = 0; i < value; i++){
+    for (int j = 0; j < abs(VIBRATION_STEPS); j++){
+      planner.stepper_x.step(_sign(VIBRATION_STEPS));
+      planner.stepper_y.step(_sign(VIBRATION_STEPS));
+    }
+    delay(25);
+
+    for (int j = 0; j < abs(-VIBRATION_STEPS); j++){
+      planner.stepper_x.step(_sign(-VIBRATION_STEPS));
+      planner.stepper_y.step(_sign(-VIBRATION_STEPS));
+    }
+    delay(25);
+  }
 }

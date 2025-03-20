@@ -19,12 +19,9 @@ Stepper::Stepper(uint8_t step_pin, uint8_t dir_pin, uint8_t timer_number) {
 }
 
 void Stepper::move_steps(int steps){
-    // _dir = _sign(_vel);
-    // // Serial.println(_dir);
-    // digitalWrite(_dir_pin, _dir);
-    // _is_moving = true;
-    // _steps_counter = abs(steps) * 2;
-    // _steps_counter_set = abs(steps);
+    for (int i = 0; i < abs(steps); i++){
+        step(_sign(steps));
+      }
 }
 
 

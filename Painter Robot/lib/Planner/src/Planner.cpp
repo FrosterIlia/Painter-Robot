@@ -113,26 +113,49 @@ void Planner::interruptHandler(){
 
 void Planner::draw_line_h() {
     if (_dx != 0) {
-        // Fixed-point arithmetic for y2 calculation
-        int32_t delta_x = stepper_x.get_pos() - _x0 + _dir;
-        int32_t y2 = (_dy * delta_x) / _dx + _y0;
 
-        stepper_x.step(_sign(_dx));
-        if (abs(stepper_y.get_pos() + _dir - y2) <= abs(stepper_y.get_pos() - y2)) {
+        if (_dx == _dy){
+            stepper_x.step(_sign(_dx));
             stepper_y.step(_sign(_dir));
+
         }
+        else{
+            // Fixed-point arithmetic for y2 calculation
+            int32_t delta_x = stepper_x.get_pos() - _x0 + _dir;
+            int32_t y2 = (_dy * delta_x) / _dx + _y0;
+
+            stepper_x.step(_sign(_dx));
+            if (abs(stepper_y.get_pos() + _dir - y2) <= abs(stepper_y.get_pos() - y2)) {
+                stepper_y.step(_sign(_dir));
+            }
+        }
+        
     }
 }
 
 void Planner::draw_line_v() {
+    
     if (_dy != 0) {
-        // Fixed-point arithmetic for x2 calculation
-        int32_t delta_y = stepper_y.get_pos() - _y0 + _dir;
-        int32_t x2 = (_dx * delta_y) / _dy + _x0;
-
-        stepper_y.step(_sign(_dy));
-        if (abs(stepper_x.get_pos() + _dir - x2) <= abs(stepper_x.get_pos() - x2)) {
+        if (_dx == _dy){
+            stepper_y.step(_sign(_dy));
             stepper_x.step(_sign(_dir));
+
         }
+        else{
+            // Fixed-point arithmetic for x2 calculation
+            int32_t delta_y = stepper_y.get_pos() - _y0 + _dir;
+            int32_t x2 = (_dx * delta_y) / _dy + _x0;
+
+            stepper_y.step(_sign(_dy));
+            if (abs(stepper_x.get_pos() + _dir - x2) <= abs(stepper_x.get_pos() - x2)) {
+                stepper_x.step(_sign(_dir));
+            }
+        }
+        
     }
+    
+}
+
+bool Planner::done_moving(){
+    return _movement_counter == 0;
 }
