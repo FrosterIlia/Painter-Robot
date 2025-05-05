@@ -3,6 +3,11 @@
 #define CVUI_IMPLEMENTATION
 #include "cvui.h"
 #include <iostream>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <thread>
+#include <atomic>
+#include <mutex>
 
 #include <wiringPi.h>
 #include <wiringSerial.h>
@@ -16,7 +21,7 @@
 #define BUTTON_2 11
 
 
-#define BUFFER_SIZE 255
+#define BUFFER_SIZE 1024
 
 #define SERVO_PIN 4
 #define CLOSED_POSITION 2100 //2100
@@ -29,11 +34,18 @@
 #define WHITE_LED_PIN 10
 #define BLUE_LED_PIN 17
 
-
+const int PORT = 8080;
+std::atomic<bool> server_running(false);
 
 void drop_ball();
 void sort_balls_auto();
 void sort_balls_manual();
+void handle_client(int client_socket, sockaddr_in client_address);
+void run_server();
+void sendMat(int clientsock, cv::Mat &frame);
+
+std::mutex mtx;
+
 
 bool moving = false;
 
@@ -43,6 +55,7 @@ cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(c
 
 cv::Mat raw_frame, hsv_frame, pink_frame, green_frame, white_frame, blue_frame, final_frame;
 
+int balls_numbers[4] = {0, 0, 0, 0};
 
 int lowerTest = 0;
 int upperTest = 30;
@@ -109,12 +122,15 @@ int main() {
     cap.set(CV_CAP_PROP_FRAME_WIDTH, 640);
     cap.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
 
-    gpioServo(SERVO_PIN, CLOSED_POSITION); // close servo
+    // gpioServo(SERVO_PIN, CLOSED_POSITION); // close servo
 
     // cv::namedWindow("Raspberry Pi Camera", cv::WINDOW_AUTOSIZE);
     cv::namedWindow("Pink Detection", cv::WINDOW_AUTOSIZE);
 
     cvui::init("Pink Detection");
+
+    std::thread server_thread(run_server);
+    server_thread.detach();
 
     while (true) {
 
@@ -131,12 +147,16 @@ int main() {
 
         if (cvui::button(raw_frame, 10, 80, "Pink") && !moving && manual){
             std::cout << "pink" << std::endl;
+            balls_numbers[1]++;
             serialPuts(serial, "m1");
             serialFlush(serial);
             moving = true;
+
+            
         }
 
         if (cvui::button(raw_frame, 80, 80, "Green") && !moving && manual){
+            balls_numbers[2]++;
             std::cout << "green" << std::endl;
             serialPuts(serial, "m2");
             serialFlush(serial);
@@ -177,6 +197,8 @@ int main() {
     }
     serialClose(serial);
     gpioTerminate();
+
+    server_running = false;
 
     cap.release();
     cv::destroyAllWindows();
@@ -299,6 +321,7 @@ void sort_balls_auto(){
             } 
 
             if (pink_counter >= 30 && !moving){
+                balls_numbers[1]++;
                 serialPuts(serial, "m1");
                 serialFlush(serial);
                 moving = true;
@@ -306,6 +329,7 @@ void sort_balls_auto(){
                 gpioWrite(PINK_LED_PIN, 1);
             }
             else if (green_counter >= 30 && !moving){
+                balls_numbers[2]++;
                 serialPuts(serial, "m2");
                 serialFlush(serial);
                 moving = true;
@@ -313,6 +337,7 @@ void sort_balls_auto(){
                 gpioWrite(GREEN_LED_PIN, 1);
             }
             else if (white_counter >= 30 && !moving){
+                balls_numbers[0]++;
                 serialPuts(serial, "m0");
                 serialFlush(serial);
                 moving = true;
@@ -320,6 +345,7 @@ void sort_balls_auto(){
                 gpioWrite(WHITE_LED_PIN, 1);
             }
             else if (blue_counter >= 30 && !moving){
+                balls_numbers[3]++;
                 serialPuts(serial, "m3");
                 serialFlush(serial);
                 moving = true;
@@ -392,6 +418,7 @@ void sort_balls_manual(){
 
     if ((cvui::button(raw_frame, 10, 80, "Pink") || button1.isClick()) && !moving){
         std::cout << "pink" << std::endl;
+        balls_numbers[1]++;
         serialPuts(serial, "m1");
         serialFlush(serial);
         gpioWrite(PINK_LED_PIN, 1);
@@ -400,6 +427,7 @@ void sort_balls_manual(){
 
     if ((cvui::button(raw_frame, 80, 80, "Green") || button2.isClick()) && !moving){
         std::cout << "green" << std::endl;
+        balls_numbers[2]++;
         serialPuts(serial, "m2");
         serialFlush(serial);
         gpioWrite(GREEN_LED_PIN, 1);
@@ -446,3 +474,199 @@ void sort_balls_manual(){
         
 }
 
+void handle_client(int client_socket, sockaddr_in client_address) {
+    char buffer[BUFFER_SIZE] = {0};
+    std::cout << "Client connected: " << inet_ntoa(client_address.sin_addr) 
+              << ":" << ntohs(client_address.sin_port) << std::endl;
+
+    while (server_running) {
+        memset(buffer, 0, BUFFER_SIZE);
+        int valread = read(client_socket, buffer, BUFFER_SIZE);
+        
+        if (valread <= 0) {
+            std::cout << "Client disconnected: " << inet_ntoa(client_address.sin_addr) 
+                     << ":" << ntohs(client_address.sin_port) << std::endl;
+            break;
+        }
+
+        std::cout << "Received from " << inet_ntoa(client_address.sin_addr) 
+                  << ": " << buffer << std::endl;
+
+        if (buffer[0] == '$'){
+            std::cout << "got $" << std::endl;
+            char* new_buffer = buffer + 1;
+
+            std::cout << *new_buffer << std::endl;
+            if (!strcmp(new_buffer, "green")){
+                std::cout << "green" << std::endl;
+                mtx.lock();
+                balls_numbers[2]++;
+                serialPuts(serial, "m2");
+                serialFlush(serial);
+                moving = true;
+                mtx.unlock();
+            }
+
+            if (!strcmp(new_buffer, "pink")){
+                std::cout << "pink" << std::endl;
+                mtx.lock();
+                balls_numbers[1]++;
+                std::cout << balls_numbers[1] << std::endl;
+                serialPuts(serial, "m1");
+                serialFlush(serial);
+                moving = true;
+                mtx.unlock();
+            }
+
+            if (!strcmp(new_buffer, "manual")){
+                std::cout << "manual" << std::endl;
+                mtx.lock();
+                manual = true;
+                mtx.unlock();
+            }
+
+            if (!strcmp(new_buffer, "auto")){
+                std::cout << "auto" << std::endl;
+                mtx.lock();
+                manual = false;
+                mtx.unlock();
+            }
+
+            if (!strcmp(new_buffer, "balls")){
+                std::cout << "balls" << std::endl;
+                mtx.lock();
+                std::string balls_string = "white: " + std::to_string(balls_numbers[0]) + " pink: " + std::to_string(balls_numbers[1]) + " green: " + std::to_string(balls_numbers[2]) + " blue: " + std::to_string(balls_numbers[3]);
+                send(client_socket, balls_string.c_str(), balls_string.length(), 0);
+                mtx.unlock();
+            }
+
+            if (!strcmp(new_buffer, "picture")){
+                std::cout << "picture" << std::endl;
+                mtx.lock();
+                // send(client_socket, "$", 1, 0);
+                sendMat(client_socket, raw_frame);
+                mtx.unlock();
+            }
+        }
+        
+
+        // Send response
+        std::string response = "$Success";
+        send(client_socket, response.c_str(), response.length(), 0);
+    }
+
+    close(client_socket);
+}
+
+void run_server() {
+    int server_fd;
+    struct sockaddr_in address;
+    int opt = 1;
+    int addrlen = sizeof(address);
+
+    // Create socket file descriptor
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed");
+        return;
+    }
+
+    // Forcefully attach socket to the port
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+        perror("setsockopt");
+        close(server_fd);
+        return;
+    }
+
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(PORT);
+
+    // Bind the socket to the port
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+        perror("bind failed");
+        close(server_fd);
+        return;
+    }
+
+    // Start listening
+    if (listen(server_fd, 3) < 0) {
+        perror("listen");
+        close(server_fd);
+        return;
+    }
+
+    std::cout << "Server listening on port " << PORT << std::endl;
+    server_running = true;
+
+    std::vector<std::thread> client_threads;
+
+    while (server_running) {
+        int new_socket;
+        struct sockaddr_in client_address;
+        socklen_t client_addrlen = sizeof(client_address);
+
+        // Accept incoming connection with timeout to allow checking server_running
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(server_fd, &readfds);
+        
+        struct timeval timeout;
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
+
+        int activity = select(server_fd + 1, &readfds, nullptr, nullptr, &timeout);
+        
+        if (activity < 0 && errno != EINTR) {
+            perror("select error");
+            continue;
+        }
+
+        if (activity > 0 && FD_ISSET(server_fd, &readfds)) {
+            if ((new_socket = accept(server_fd, (struct sockaddr *)&client_address, &client_addrlen)) < 0) {
+                perror("accept");
+                continue;
+            }
+
+            // Create a new thread for each client
+            client_threads.emplace_back(handle_client, new_socket, client_address);
+        }
+    }
+
+    // Wait for all client threads to finish
+    for (auto& thread : client_threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    close(server_fd);
+    std::cout << "Server stopped" << std::endl;
+}
+
+void sendMat(int clientsock, cv::Mat &frame) {
+    std::vector<uchar> image_buffer;
+    std::vector<int> compression_params = {
+        cv::IMWRITE_JPEG_QUALITY, 80, // Default quality (0-100)
+        cv::IMWRITE_JPEG_PROGRESSIVE, 1, // Enable progressive JPEG
+        cv::IMWRITE_JPEG_OPTIMIZE, 1 // Enable optimization
+    };
+
+    if (frame.empty()) {
+        std::cerr << "No image available to send" << std::endl;
+        return;
+    }
+
+    // Compress the image
+    image_buffer.clear();
+    if (frame.empty() == false)
+    {
+    // Compress image to reduce size
+    cv::imencode("image.jpg", frame, image_buffer, compression_params);
+    }
+
+                // Send image
+    send(clientsock, reinterpret_cast<char*>(&image_buffer[0]), image_buffer.size(), 0);
+            
+
+    std::cout << "Sent image: " << image_buffer.size() << " bytes" << std::endl;
+}
