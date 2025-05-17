@@ -1,3 +1,4 @@
 [submodule "Slicer"]
 	path = Slicer
 	url = https://github.com/FrosterIlia/Slicer.git
+	branch = main
