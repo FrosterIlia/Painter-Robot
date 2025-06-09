@@ -2,22 +2,19 @@
 #include "Arduino.h"
 #include "Timer.h"
 
-
 #define DRIVER_STEP_TIME 500
 
-#define _sign(x) ((x) >= 0 ? 1 : 0) 
+#define _sign(x) ((x) >= 0 ? 1 : 0)
 
-class Stepper {
+class Stepper
+{
 public:
-
     Stepper(uint8_t step_pin, uint8_t dir_pin, uint8_t timer_number);
 
     void step(bool dir);
-
     void move_steps(int steps);
 
     void stop();
-
     void start();
 
     void interruptHandler();
@@ -26,11 +23,11 @@ public:
     float get_velocity();
     int get_pos();
 
-    int get_steps_count() {return _steps_counter;}
-    int get_steps_count_set() {return _steps_counter_set;}
+    int get_steps_count() { return _steps_counter; }
+    int get_steps_count_set() { return _steps_counter_set; }
 
     void attach_timer_handler(void (*timer_handler)());
-    
+
     hw_timer_t *timer = NULL;
 
 private:
@@ -49,6 +46,4 @@ private:
 
     void (*_timer_handler)();
     int get_step_interval();
-    
 };
-
