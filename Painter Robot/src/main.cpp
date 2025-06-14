@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <LittleFS.h>
+#include "SoftServo.h"
 
 #include "Stepper.h"
 #include "GyverPortal.h"
@@ -9,11 +10,21 @@
 #include "FileSystem.h"
 #include "Parser.h"
 
+#define SERVO_PIN GPIO_NUM_23
+
+#define SERVO_UP_POSITION 0
+#define SERVO_DOWN_POSITION 70
+
+#define SERVO_MIN_IMPULSE 1100
+#define SERVO_MAX_IMPULSE 2000
+
 FileSystem file_system;
 GyverPortal portal(&LittleFS);
 
 Planner planner(2);
 Parser parser;
+
+SoftServo pen_servo;
 
 void IRAM_ATTR TimerHandler1()
 {
@@ -32,6 +43,7 @@ void IRAM_ATTR PlannerTimerHandler()
 
 void setupPortal();
 void plot_graph();
+bool paint_cmd();
 
 void build()
 {
@@ -63,7 +75,6 @@ void action()
     if (portal.click("slider_x"))
     {
       planner.set_target_x(portal.getFloat("slider_x"));
-      Serial.println(portal.getFloat("slider_x"));
     }
 
     if (portal.click("slider_y"))
@@ -102,6 +113,7 @@ void action()
 }
 
 Timer plotter_timer(100);
+Timer paintning_timer(120);
 
 void setup()
 {
@@ -110,6 +122,9 @@ void setup()
   planner.init_steppers(&TimerHandler1, &TimerHandler2);
   planner.attach_interrupt_handler(&PlannerTimerHandler);
   setupPortal();
+  pen_servo.attach(SERVO_PIN, SERVO_MIN_IMPULSE, SERVO_MAX_IMPULSE);
+  pen_servo.delayMode();
+  pen_servo.write(SERVO_UP_POSITION);
   Serial.println(F("CNC Shield Initialized"));
 
   if (parser.open("/test.txt"))
@@ -120,13 +135,23 @@ void setup()
   {
     Serial.println("Parser failed to open the file");
   }
-
 }
+
+bool painting = false;
 
 void loop()
 {
-
   portal.tick();
+  pen_servo.tick();
+
+  if (painting && planner.done_moving())
+  {
+    delay(1);
+    if (!paint_cmd())
+    {
+      painting = false;
+    }
+  }
 
   char key;
   if (Serial.available() > 0)
@@ -139,17 +164,27 @@ void loop()
       break;
 
     case 'n':
-      while (!parser.is_done())
-      {
-        Parser::Command command = parser.get_next_cmd();
-        Pos position = parser.get_target_pos();
-        Serial.printf("%d: %d, %d\r\n", command, position.x, position.y);
-      }
-
+    {
+      paint_cmd();
       break;
-    
+    }
+
+    case 'p':
+      painting = !painting;
+      break;
+
     case 'o':
       file_system.print_file("/test.txt");
+      break;
+
+    case 'u':
+    {
+      pen_servo.write(SERVO_UP_POSITION);
+      break;
+    }
+
+    case 'd':
+      pen_servo.write(SERVO_DOWN_POSITION);
       break;
     }
   }
@@ -160,7 +195,7 @@ void loop()
 void setupPortal()
 {
   WiFi.mode(WIFI_STA);
-  WiFi.begin("dlink-7850", "wsusa58776");
+  WiFi.begin("BCIT Robotics Club", "IWillBuildARobot");
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
@@ -185,4 +220,45 @@ void plot_graph()
     Serial.print(planner.get_current_velocity());
     Serial.print(")}");
   }
+}
+
+bool paint_cmd()
+{
+  Parser::Command cmd = parser.get_next_cmd();
+  Pos position = parser.get_target_pos();
+
+  Serial.print((uint8_t)cmd);
+  Serial.printf("Position: %d:%d\r\n", position.x, position.y);
+
+  switch (cmd)
+  {
+  case Parser::Command::UP:
+    Serial.println(F("Servo up"));
+    delay(500);
+    pen_servo.write(SERVO_UP_POSITION);
+    break;
+
+  case Parser::Command::DOWN:
+    pen_servo.write(SERVO_DOWN_POSITION);
+    delay(500);
+    Serial.println(F("Servo down"));
+    break;
+
+  case Parser::Command::MOVE:
+    planner.set_target_x(position.x);
+    planner.set_target_y(position.y);
+    planner.move();
+    planner.start();
+    break;
+
+  case Parser::Command::INVALID:
+    Serial.println(F("Invalid Command"));
+    break;
+
+  case Parser::Command::END_OF_FILE:
+    Serial.println(F("End of File"));
+    return false;
+  }
+  return true;
+  
 }
