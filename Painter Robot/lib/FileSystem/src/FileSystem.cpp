@@ -28,8 +28,13 @@ FileSystem::FileSystem()
     }
 }
 
-void FileSystem::writeFile(const char *path, const char *contents)
+void FileSystem::write_file(const char *path, const char *contents)
 {
+    if (path == NULL || contents == NULL)
+    {
+        Serial.printf("Null pointer passed, File: %s, Line: %d", __FILE__, __LINE__);
+        return;
+    }
     Serial.printf("Writing file: %s\n", path);
 
     File file = LittleFS.open(path, FILE_WRITE);
@@ -50,8 +55,13 @@ void FileSystem::writeFile(const char *path, const char *contents)
     file.close();
 }
 
-void FileSystem::printFileContents(const char *path)
+void FileSystem::print_file(const char *path)
 {
+    if (path == NULL)
+    {
+        Serial.printf("Null pointer passed, File: %s, Line: %d", __FILE__, __LINE__);
+        return;
+    }
     Serial.printf("Reading file: %s\n", path);
 
     File file = LittleFS.open(path);
@@ -70,8 +80,13 @@ void FileSystem::printFileContents(const char *path)
     file.close();
 }
 
-bool FileSystem::deleteFile(const char *path)
+bool FileSystem::delete_file(const char *path)
 {
+    if (path == NULL)
+    {
+        Serial.printf("Null pointer passed, File: %s, Line: %d", __FILE__, __LINE__);
+        return false;
+    }
     // Safety check - prevent accidental deletion of root directory
     if (strcmp(path, "/") == 0)
     {
@@ -109,19 +124,19 @@ bool FileSystem::deleteFile(const char *path)
     }
 }
 
-void FileSystem::printFileSystemContents()
+void FileSystem::print_file_system_contents()
 {
     Serial.println(F("\nLittleFS File System Contents:"));
     Serial.println(F("============================="));
 
     // Start with the root directory
-    listDirectory("/", 0);
+    list_directory("/", 0);
 
     Serial.println(F("============================="));
     Serial.println(F("End of file system contents\n"));
 }
 
-void FileSystem::listDirectory(const char *dirname, uint8_t depth)
+void FileSystem::list_directory(const char *dirname, uint8_t depth)
 {
     // Open the directory
     File root = LittleFS.open(dirname);
@@ -153,11 +168,11 @@ void FileSystem::listDirectory(const char *dirname, uint8_t depth)
             Serial.print(F("+ [DIR]  "));
             Serial.print(file.name());
             Serial.print(F("  ("));
-            Serial.print(getFileSizeFormatted(0)); // Directories show 0 size
+            Serial.print(get_file_size_formatted(0)); // Directories show 0 size
             Serial.println(F(")"));
 
             // Recursively list directory contents
-            listDirectory(file.name(), depth + 1);
+            list_directory(file.name(), depth + 1);
         }
         else
         {
@@ -165,7 +180,7 @@ void FileSystem::listDirectory(const char *dirname, uint8_t depth)
             Serial.print(F("- [FILE] "));
             Serial.print(file.name());
             Serial.print(F("  ("));
-            Serial.print(getFileSizeFormatted(file.size()));
+            Serial.print(get_file_size_formatted(file.size()));
             Serial.print(F(")"));
 
             Serial.println();
@@ -177,7 +192,7 @@ void FileSystem::listDirectory(const char *dirname, uint8_t depth)
     root.close();
 }
 
-String FileSystem::getFileSizeFormatted(size_t bytes)
+String FileSystem::get_file_size_formatted(size_t bytes)
 {
     if (bytes < 1024)
     {

@@ -7,11 +7,13 @@
 #include "TimerMicros.h"
 #include "Planner.h"
 #include "FileSystem.h"
+#include "Parser.h"
 
 FileSystem file_system;
 GyverPortal portal(&LittleFS);
 
 Planner planner(2);
+Parser parser;
 
 void IRAM_ATTR TimerHandler1()
 {
@@ -110,6 +112,15 @@ void setup()
   setupPortal();
   Serial.println(F("CNC Shield Initialized"));
 
+  if (parser.open("/test.txt"))
+  {
+    Serial.println("Parser successfully opened the file");
+  }
+  else
+  {
+    Serial.println("Parser failed to open the file");
+  }
+
 }
 
 void loop()
@@ -124,7 +135,21 @@ void loop()
     switch (key)
     {
     case 'f':
-      file_system.printFileSystemContents();
+      file_system.print_file_system_contents();
+      break;
+
+    case 'n':
+      while (!parser.is_done())
+      {
+        Parser::Command command = parser.get_next_cmd();
+        Pos position = parser.get_target_pos();
+        Serial.printf("%d: %d, %d\r\n", command, position.x, position.y);
+      }
+
+      break;
+    
+    case 'o':
+      file_system.print_file("/test.txt");
       break;
     }
   }
@@ -135,7 +160,7 @@ void loop()
 void setupPortal()
 {
   WiFi.mode(WIFI_STA);
-  WiFi.begin("BCIT Robotics Club", "IWillBuildARobot");
+  WiFi.begin("dlink-7850", "wsusa58776");
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
