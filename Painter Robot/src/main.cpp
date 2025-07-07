@@ -9,6 +9,7 @@
 #include "Planner.h"
 #include "FileSystem.h"
 #include "Parser.h"
+#include "SerialPlotter.h"
 
 #define SERVO_PIN GPIO_NUM_23
 
@@ -42,7 +43,6 @@ void IRAM_ATTR PlannerTimerHandler()
 }
 
 void setupPortal();
-void plot_graph();
 bool paint_cmd();
 
 void build()
@@ -115,6 +115,8 @@ void action()
 Timer plotter_timer(100);
 Timer paintning_timer(120);
 
+SerialPlotter<1> plotter;
+
 void setup()
 {
   Serial.begin(115200);
@@ -135,6 +137,13 @@ void setup()
   {
     Serial.println("Parser failed to open the file");
   }
+  planner.start();
+
+  auto& plot1 = plotter.add_plot<3, int>("P");
+  plot1.attach_parameter("pos_x", []() { return planner.stepper_x.get_pos(); });
+  plot1.attach_parameter("pos_y", []() { return planner.stepper_y.get_pos(); });
+  plot1.attach_parameter("vel", []() { return planner.get_current_velocity(); });
+
 }
 
 bool painting = false;
@@ -186,10 +195,31 @@ void loop()
     case 'd':
       pen_servo.write(SERVO_DOWN_POSITION);
       break;
+
+    case 'x':
+    {
+      int x_pos = Serial.parseInt();
+
+      planner.set_target_x(x_pos);
+      Serial.println(F("x_pos set"));
+      break;
+    }
+    case 'y':
+    {
+      int y_pos = Serial.parseInt();
+
+      planner.set_target_y(y_pos);
+      Serial.println(F("y_pos set"));
+      break;
+    }
+    case 's':
+      Serial.println(F("Start"));
+      planner.move();
+      break;
     }
   }
 
-  // plot_graph();
+  plotter.plot();
 }
 
 void setupPortal()
@@ -208,19 +238,6 @@ void setupPortal()
   portal.start();
 }
 
-void plot_graph()
-{
-  if (plotter_timer.isReady())
-  {
-    Serial.print("{P(pos_x:");
-    Serial.print(planner.stepper_x.get_pos());
-    Serial.print(",pos_y:");
-    Serial.print(planner.stepper_y.get_pos());
-    Serial.print(",vel:");
-    Serial.print(planner.get_current_velocity());
-    Serial.print(")}");
-  }
-}
 
 bool paint_cmd()
 {
@@ -260,5 +277,4 @@ bool paint_cmd()
     return false;
   }
   return true;
-  
 }
