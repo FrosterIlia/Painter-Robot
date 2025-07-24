@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Painter-Robot** is a CNC Pen Plotter project designed to bring your digital images to life on paper. Using precise stepper motor control and custom commands, the robot can replicate vector graphics, sketches, and drawings with remarkable accuracy. The core logic is written in C++ for the ESP32 microcontroller, with a Python-based slicer for image processing and plotting path optimization. The system features a web interface for manual control and file transfer over the internet.
+**Painter-Robot** is a CNC Pen Plotter project designed to bring your digital images to life on paper. Bresenham's Line Algorithm is used for precise stepper motor control and allows for resource-efficient drawing of straight lines with acceleration. The core logic is written in C++ for the ESP32 microcontroller, with a Python-based slicer for image processing and plotting path optimization. The system features a web interface for manual control and file transfer over the internet.
 
 Additionally, the project includes a **ball sorter accessory**: an add-on that uses a Raspberry Pi and computer vision (OpenCV) to identify the colors of small balls and sort them into baskets automatically.
 
