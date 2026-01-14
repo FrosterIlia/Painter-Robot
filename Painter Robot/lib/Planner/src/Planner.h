@@ -1,3 +1,13 @@
+/**
+ * @file Planner.h
+ * @author Ilia Moroz (iliamorozim@gmail.com)
+ * @brief Class for Trajectory Planner for CNC Painter Robot.
+ * @version 1.0
+ * @date 2025-07-05
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #pragma once
 #include "Arduino.h"
 #include "Stepper.h"

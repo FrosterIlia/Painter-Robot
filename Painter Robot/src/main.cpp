@@ -19,6 +19,15 @@
 #define SERVO_MIN_IMPULSE 1100
 #define SERVO_MAX_IMPULSE 2000
 
+// Set to 1 to start ESP32 as an access point, 0 to connect to existing WiFi.
+#define USE_WIFI_HOTSPOT 1
+
+#define WIFI_STA_SSID "BCIT Robotics Club"
+#define WIFI_STA_PASS "IWillBuildARobot"
+
+#define WIFI_AP_SSID "PainterRobot"
+#define WIFI_AP_PASS "PainterRobot"
+
 FileSystem file_system;
 GyverPortal portal(&LittleFS);
 
@@ -120,6 +129,7 @@ SerialPlotter<1> plotter;
 void setup()
 {
   Serial.begin(115200);
+  file_system.begin();
 
   planner.init_steppers(&TimerHandler1, &TimerHandler2);
   planner.attach_interrupt_handler(&PlannerTimerHandler);
@@ -139,11 +149,13 @@ void setup()
   }
   planner.start();
 
-  auto& plot1 = plotter.add_plot<3, int>("P");
-  plot1.attach_parameter("pos_x", []() { return planner.stepper_x.get_pos(); });
-  plot1.attach_parameter("pos_y", []() { return planner.stepper_y.get_pos(); });
-  plot1.attach_parameter("vel", []() { return planner.get_current_velocity(); });
-
+  auto &plot1 = plotter.add_plot<3, int>("P");
+  plot1.attach_parameter("pos_x", []()
+                         { return planner.stepper_x.get_pos(); });
+  plot1.attach_parameter("pos_y", []()
+                         { return planner.stepper_y.get_pos(); });
+  plot1.attach_parameter("vel", []()
+                         { return planner.get_current_velocity(); });
 }
 
 bool painting = false;
@@ -183,17 +195,24 @@ void loop()
       break;
 
     case 'o':
-      file_system.print_file("/test.txt");
+    {
+      String filename = Serial.readStringUntil(';');
+      Serial.println(filename);
+      parser.open(filename.c_str());
+      // file_system.print_file(filename.c_str());
       break;
+    }
 
     case 'u':
     {
       pen_servo.write(SERVO_UP_POSITION);
+      Serial.println("servo up");
       break;
     }
 
     case 'd':
       pen_servo.write(SERVO_DOWN_POSITION);
+      Serial.println("servo down");
       break;
 
     case 'x':
@@ -224,20 +243,28 @@ void loop()
 
 void setupPortal()
 {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin("BCIT Robotics Club", "IWillBuildARobot");
-  while (WiFi.status() != WL_CONNECTED)
+  if (USE_WIFI_HOTSPOT)
   {
-    delay(500);
-    Serial.print(".");
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP(WIFI_AP_SSID, WIFI_AP_PASS);
+    Serial.println(WiFi.softAPIP());
   }
-  Serial.println(WiFi.localIP());
+  else
+  {
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_STA_SSID, WIFI_STA_PASS);
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      delay(500);
+      Serial.print(".");
+    }
+    Serial.println(WiFi.localIP());
+  }
 
   portal.attachBuild(build);
   portal.attach(action);
   portal.start();
 }
-
 
 bool paint_cmd()
 {

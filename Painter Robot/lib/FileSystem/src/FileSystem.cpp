@@ -2,30 +2,18 @@
 
 FileSystem::FileSystem()
 {
-    if (!LittleFS.begin(true))
-    {
-        Serial.println("LittleFS mount failed, attempting to format...");
+}
 
-        // Full format
-        if (LittleFS.format())
-        {
-            Serial.println("Format successful, retrying mount...");
-            if (!LittleFS.begin(true))
-            {
-                Serial.println("Mount after format failed! Check partition table.");
-                while (1) // Halt on failure
-                {
-                }
-            }
-        }
-        else
-        {
-            Serial.println("Format failed! Check flash memory.");
-            while (1)
-            {
-            }
-        }
+bool FileSystem::begin(bool format_on_fail)
+{
+    if (!LittleFS.begin(format_on_fail))
+    {
+        Serial.println(F("LittleFS mount failed"));
+        return false;
     }
+
+    Serial.println(F("FileSystem initialized successfully"));
+    return true;
 }
 
 void FileSystem::write_file(const char *path, const char *contents)

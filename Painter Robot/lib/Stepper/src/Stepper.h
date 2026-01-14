@@ -1,3 +1,13 @@
+/**
+ * @file Stepper.h
+ * @author Ilia Moroz (iliamorozim@gmail.com)
+ * @brief Class for convenient stepper motor control
+ * @version 1.0
+ * @date 2025-07-05
+ *
+ * @copyright Copyright (c) 2025
+ *
+ */
 #pragma once
 #include "Arduino.h"
 #include "Timer.h"

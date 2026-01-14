@@ -1,5 +1,14 @@
-#ifndef SoftServo_h
-#define SoftServo_h
+/**
+ * @file SoftServo.h
+ * @author Ilia Moroz (iliamorozim@gmail.com)
+ * @brief Class for generating impulses for servo control in software
+ * @version 1.0
+ * @date 2025-07-05
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+#pragma once
 #include <Arduino.h>
 
 class SoftServo
@@ -106,5 +115,3 @@ private:
     bool _attached = 0, _mode = 0, _flag = 0;
     uint32_t _tmr50, _tmrUs;
 };
-
-#endif
